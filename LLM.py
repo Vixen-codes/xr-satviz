@@ -61,3 +61,6 @@ def llm():
 
 if __name__ == "__main__":
     app.run(port=5000)
+git add .
+git commit -m "fix CORS + sat.glb + error handling"
+git push
