@@ -2,51 +2,467 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>XR-SatViz</title>
+  <title>🛰️ XR-SatViz - Real-Time Satellite Tracker</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://unpkg.com/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
   <style>
-    body { margin: 0; font-family: Arial; }
-    #input { position: fixed; bottom: 20px; width: 100%; padding: 15px; font-size: 18px; }
-    button { padding: 15px; font-size: 18px; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      margin: 0; 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+    }
+    
+    #ui-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    
+    #info-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      min-width: 300px;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(0, 255, 255, 0.3);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      pointer-events: auto;
+    }
+    
+    #info-panel h2 {
+      margin: 0 0 15px 0;
+      font-size: 24px;
+      color: #00ffff;
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    }
+    
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 8px 0;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+    }
+    
+    .stat-label {
+      color: #aaa;
+      font-size: 14px;
+    }
+    
+    .stat-value {
+      color: #00ff88;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    
+    #city-passes {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .city-badge {
+      display: inline-block;
+      background: rgba(0, 255, 136, 0.2);
+      color: #00ff88;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      margin: 4px;
+      border: 1px solid rgba(0, 255, 136, 0.4);
+    }
+    
+    #search-container {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      pointer-events: auto;
+    }
+    
+    #prompt {
+      width: 400px;
+      padding: 15px 20px;
+      font-size: 16px;
+      border: 2px solid rgba(0, 255, 255, 0.5);
+      border-radius: 25px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      outline: none;
+      backdrop-filter: blur(10px);
+    }
+    
+    #prompt:focus {
+      border-color: #00ffff;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+    }
+    
+    #search-btn {
+      padding: 15px 35px;
+      font-size: 16px;
+      background: linear-gradient(135deg, #00ffff, #0088ff);
+      color: #000;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(0, 255, 255, 0.4);
+    }
+    
+    #search-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 255, 255, 0.6);
+    }
+    
+    #search-btn:active {
+      transform: translateY(0);
+    }
+    
+    #search-btn.loading {
+      background: #666;
+      cursor: wait;
+    }
+    
+    #suggestions {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.85);
+      padding: 15px;
+      border-radius: 12px;
+      color: #fff;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 136, 0, 0.3);
+      pointer-events: auto;
+    }
+    
+    #suggestions h3 {
+      margin: 0 0 10px 0;
+      color: #ff8800;
+      font-size: 16px;
+    }
+    
+    .suggestion-btn {
+      display: block;
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      background: rgba(255, 136, 0, 0.2);
+      border: 1px solid rgba(255, 136, 0, 0.4);
+      border-radius: 6px;
+      color: #ff8800;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    
+    .suggestion-btn:hover {
+      background: rgba(255, 136, 0, 0.4);
+      transform: translateX(5px);
+    }
+    
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.9);
+      padding: 30px 50px;
+      border-radius: 12px;
+      color: #00ffff;
+      font-size: 20px;
+      display: none;
+      pointer-events: none;
+      border: 2px solid #00ffff;
+    }
+    
+    .spinner {
+      border: 3px solid rgba(0, 255, 255, 0.3);
+      border-top: 3px solid #00ffff;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
-  <a-scene background="color: #000" xr-mode-ui="enabled: true">
-    <a-entity id="satellite" position="0 0 -5"></a-entity>
-    <a-sky color="#000"></a-sky>
-    <a-camera wasd-controls look-controls></a-camera>
+  <a-scene background="color: #000000">
+    <!-- Earth with texture -->
+    <a-sphere id="earth" position="0 0 0" radius="2" 
+              color="#1a4d7a"
+              animation="property: rotation; to: 0 360 0; loop: true; dur: 120000; easing: linear">
+      <a-sphere radius="2.01" color="#2a6da0" opacity="0.3"></a-sphere>
+    </a-sphere>
+    
+    <!-- Atmosphere glow -->
+    <a-sphere position="0 0 0" radius="2.2" 
+              material="shader: flat; color: #4da6ff; opacity: 0.1; transparent: true"></a-sphere>
+    
+    <!-- Satellite container -->
+    <a-entity id="satellite-container"></a-entity>
+    
+    <!-- City markers container -->
+    <a-entity id="cities-container"></a-entity>
+    
+    <!-- Orbit path container -->
+    <a-entity id="orbit-path"></a-entity>
+    
+    <!-- Stars -->
+    <a-sky color="#000000"></a-sky>
+    
+    <!-- Camera -->
+    <a-entity id="camera-rig" position="0 0 15">
+      <a-camera wasd-controls look-controls></a-camera>
+    </a-entity>
+    
+    <!-- Lighting -->
+    <a-light type="ambient" intensity="0.4"></a-light>
+    <a-light type="directional" position="5 3 5" intensity="0.8"></a-light>
+    <a-light type="point" position="-5 -3 -5" intensity="0.3" color="#4da6ff"></a-light>
   </a-scene>
 
-  <div id="input">
-    <input id="prompt" placeholder="Show me ISS..." style="width:70%;padding:10px;">
-    <button onclick="generate()">GO</button>
+  <div id="ui-container">
+    <div id="info-panel" style="display:none;">
+      <h2 id="sat-name">🛰️ Satellite</h2>
+      <div class="stat-row">
+        <span class="stat-label">Altitude</span>
+        <span class="stat-value" id="altitude">-</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Velocity</span>
+        <span class="stat-value" id="velocity">-</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Latency</span>
+        <span class="stat-value" id="latency">-</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Position</span>
+        <span class="stat-value" id="coords">-</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Ground Track</span>
+        <span class="stat-value" id="ground-track">-</span>
+      </div>
+      <div id="city-passes">
+        <div class="stat-label" style="margin-bottom: 8px;">📍 Near Cities:</div>
+        <div id="city-list"></div>
+      </div>
+    </div>
+
+    <div id="suggestions">
+      <h3>🚀 Try These:</h3>
+      <button class="suggestion-btn" onclick="quickSearch('ISS')">🛰️ ISS</button>
+      <button class="suggestion-btn" onclick="quickSearch('Starlink')">⭐ Starlink</button>
+      <button class="suggestion-btn" onclick="quickSearch('Hubble')">🔭 Hubble</button>
+      <button class="suggestion-btn" onclick="quickSearch('NOAA')">🌍 NOAA</button>
+      <button class="suggestion-btn" onclick="quickSearch('Tiangong')">🏠 Tiangong</button>
+    </div>
+
+    <div id="search-container">
+      <input type="text" id="prompt" 
+             placeholder="Try: 'Show me ISS' or 'Where is Starlink?'" 
+             value="show me ISS">
+      <button id="search-btn" onclick="searchSatellite()">🔍 GO</button>
+    </div>
+
+    <div id="loading">
+      <div class="spinner"></div>
+      Tracking satellite...
+    </div>
   </div>
 
   <script>
-    async function generate() {
+    const API_URL = 'http://localhost:5000/';
+    let animationFrame = 0;
+    let currentTrajectory = [];
+
+    async function searchSatellite() {
       const prompt = document.getElementById('prompt').value;
-      const res = await fetch('https://xr-satviz-llm.mannatchauhan20.repl.co/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: prompt
-      });
-      const data = await res.json();
-      updateScene(data);
+      const btn = document.getElementById('search-btn');
+      const loading = document.getElementById('loading');
+      
+      btn.classList.add('loading');
+      btn.textContent = '⏳ Searching...';
+      loading.style.display = 'block';
+      
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: prompt
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+          updateScene(data);
+        } else {
+          alert('❌ ' + (data.message || data.error));
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('⚠️ Cannot connect to server.\nMake sure Flask is running: python main.py');
+      } finally {
+        btn.classList.remove('loading');
+        btn.textContent = '🔍 GO';
+        loading.style.display = 'none';
+      }
+    }
+
+    function quickSearch(satellite) {
+      document.getElementById('prompt').value = satellite;
+      searchSatellite();
     }
 
     function updateScene(data) {
-      const sat = document.getElementById('satellite');
-      sat.setAttribute('gltf-model', 'url(sat.glb)');
-      sat.object3D.position.set(data.x, data.y, data.z);
-
-      const ring = document.createElement('a-ring');
-      ring.setAttribute('position', `${data.x} ${data.y} ${data.z}`);
-      ring.setAttribute('radius-inner', 0.05);
-      ring.setAttribute('radius-outer', data.latency / 20);
-      ring.setAttribute('color', data.latency < 100 ? '#00ff00' : '#ff0000');
-      document.querySelector('a-scene').appendChild(ring);
+      console.log('Received data:', data);
+      
+      // Update info panel
+      document.getElementById('info-panel').style.display = 'block';
+      document.getElementById('sat-name').textContent = '🛰️ ' + data.name;
+      document.getElementById('altitude').textContent = data.stats.altitude + ' km';
+      document.getElementById('velocity').textContent = data.stats.velocity + ' km/s';
+      document.getElementById('latency').textContent = data.stats.latency + ' ms';
+      document.getElementById('coords').textContent = 
+        `(${data.position.x.toFixed(1)}, ${data.position.y.toFixed(1)}, ${data.position.z.toFixed(1)})`;
+      document.getElementById('ground-track').textContent = 
+        `${data.groundTrack.lat.toFixed(2)}°, ${data.groundTrack.lon.toFixed(2)}°`;
+      
+      // Update city passes
+      const cityList = document.getElementById('city-list');
+      if (data.cityPasses && data.cityPasses.length > 0) {
+        cityList.innerHTML = data.cityPasses
+          .map(p => `<span class="city-badge">${p.city} (${p.distance} km)</span>`)
+          .join('');
+      } else {
+        cityList.innerHTML = '<span class="city-badge">No cities nearby</span>';
+      }
+      
+      // Clear previous satellite
+      const container = document.getElementById('satellite-container');
+      container.innerHTML = '';
+      
+      // Create satellite
+      const sat = document.createElement('a-entity');
+      sat.innerHTML = `
+        <a-box color="#ff4400" scale="0.2 0.2 0.2" 
+               position="${data.position.x} ${data.position.y} ${data.position.z}"
+               animation="property: rotation; to: 0 360 0; loop: true; dur: 3000">
+        </a-box>
+        <a-sphere color="#ffaa00" radius="0.05" opacity="0.6"
+                  position="${data.position.x} ${data.position.y} ${data.position.z}">
+          <a-animation attribute="scale" to="3 3 3" dur="2000" repeat="indefinite"></a-animation>
+          <a-animation attribute="opacity" to="0" dur="2000" repeat="indefinite"></a-animation>
+        </a-sphere>
+      `;
+      container.appendChild(sat);
+      
+      // Draw orbit path
+      drawOrbitPath(data.trajectory);
+      
+      // Draw cities
+      drawCities(data.cities);
+      
+      // Animate satellite along orbit
+      currentTrajectory = data.trajectory;
+      animateSatellite();
     }
+
+    function drawOrbitPath(trajectory) {
+      const pathContainer = document.getElementById('orbit-path');
+      pathContainer.innerHTML = '';
+      
+      for (let i = 0; i < trajectory.length - 1; i += 5) {
+        const p1 = trajectory[i];
+        const p2 = trajectory[i + 5] || trajectory[trajectory.length - 1];
+        
+        const line = document.createElement('a-entity');
+        line.setAttribute('line', {
+          start: `${p1.x} ${p1.y} ${p1.z}`,
+          end: `${p2.x} ${p2.y} ${p2.z}`,
+          color: '#00ffff',
+          opacity: 0.3
+        });
+        pathContainer.appendChild(line);
+      }
+    }
+
+    function drawCities(cities) {
+      const citiesContainer = document.getElementById('cities-container');
+      citiesContainer.innerHTML = '';
+      
+      cities.forEach(city => {
+        // Convert lat/lon to 3D position on sphere
+        const lat = city.lat * Math.PI / 180;
+        const lon = city.lon * Math.PI / 180;
+        const radius = 2.05;
+        
+        const x = radius * Math.cos(lat) * Math.cos(lon);
+        const y = radius * Math.sin(lat);
+        const z = -radius * Math.cos(lat) * Math.sin(lon);
+        
+        const marker = document.createElement('a-sphere');
+        marker.setAttribute('position', `${x} ${y} ${z}`);
+        marker.setAttribute('radius', '0.05');
+        marker.setAttribute('color', '#ffff00');
+        marker.setAttribute('opacity', '0.8');
+        citiesContainer.appendChild(marker);
+        
+        // Add city label
+        const text = document.createElement('a-text');
+        text.setAttribute('value', city.name);
+        text.setAttribute('position', `${x * 1.1} ${y * 1.1} ${z * 1.1}`);
+        text.setAttribute('scale', '0.5 0.5 0.5');
+        text.setAttribute('color', '#ffff00');
+        text.setAttribute('align', 'center');
+        citiesContainer.appendChild(text);
+      });
+    }
+
+    function animateSatellite() {
+      if (currentTrajectory.length === 0) return;
+      
+      const sat = document.querySelector('#satellite-container a-box');
+      if (!sat) return;
+      
+      animationFrame = (animationFrame + 1) % currentTrajectory.length;
+      const pos = currentTrajectory[animationFrame];
+      
+      sat.setAttribute('position', `${pos.x} ${pos.y} ${pos.z}`);
+      
+      setTimeout(() => animateSatellite(), 50);
+    }
+
+    // Handle Enter key
+    document.getElementById('prompt').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') searchSatellite();
+    });
+
+    // Auto-search on load
+    window.addEventListener('load', () => {
+      setTimeout(() => searchSatellite(), 1000);
+    });
   </script>
 </body>
 </html>
