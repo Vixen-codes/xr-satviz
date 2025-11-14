@@ -1,35 +1,50 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8">
+  <title>XR-SatViz</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://unpkg.com/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+  <style>
+    body { margin: 0; font-family: Arial; }
+    #input { position: fixed; bottom: 20px; width: 100%; padding: 15px; font-size: 18px; }
+    button { padding: 15px; font-size: 18px; }
+  </style>
 </head>
 <body>
-  <a-scene xr-mode-ui="enabled: true" background="color: #000">
+  <a-scene background="color: #000" xr-mode-ui="enabled: true">
     <a-entity id="satellite" position="0 0 -5"></a-entity>
-    <a-entity camera wasd-controls look-controls></a-entity>
+    <a-sky color="#000"></a-sky>
+    <a-camera wasd-controls look-controls></a-camera>
   </a-scene>
 
-  <input id="prompt" placeholder="Ask about a satellite..." style="width:100%;padding:10px;font-size:18px;">
-  <button onclick="generate()">Go</button>
+  <div id="input">
+    <input id="prompt" placeholder="Show me ISS..." style="width:70%;padding:10px;">
+    <button onclick="generate()">GO</button>
+  </div>
 
   <script>
     async function generate() {
       const prompt = document.getElementById('prompt').value;
-      const res = await fetch('https://replit.com/@mannatchauhan20/xr-satviz-llm', { method: 'POST', body: prompt });
+      const res = await fetch('https://xr-satviz-llm.mannatchauhan20.repl.co/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: prompt
+      });
       const data = await res.json();
       updateScene(data);
     }
 
     function updateScene(data) {
       const sat = document.getElementById('satellite');
-      sat.setAttribute('gltf-model', '#satellite-glb');
+      sat.setAttribute('gltf-model', 'url(sat.glb)');
       sat.object3D.position.set(data.x, data.y, data.z);
-      // Add latency ring
+
       const ring = document.createElement('a-ring');
-      ring.setAttribute('radius-inner', 0.1);
-      ring.setAttribute('radius-outer', data.latency / 10);
-      ring.setAttribute('color', data.latency < 50 ? 'green' : 'red');
+      ring.setAttribute('position', `${data.x} ${data.y} ${data.z}`);
+      ring.setAttribute('radius-inner', 0.05);
+      ring.setAttribute('radius-outer', data.latency / 20);
+      ring.setAttribute('color', data.latency < 100 ? '#00ff00' : '#ff0000');
       document.querySelector('a-scene').appendChild(ring);
     }
   </script>
