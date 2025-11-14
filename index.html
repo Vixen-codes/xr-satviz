@@ -16,7 +16,7 @@
   <script>
     async function generate() {
       const prompt = document.getElementById('prompt').value;
-      const res = await fetch('llm.py', { method: 'POST', body: prompt });
+      const res = await fetch('https://replit.com/@mannatchauhan20/xr-satviz-llm', { method: 'POST', body: prompt });
       const data = await res.json();
       updateScene(data);
     }
