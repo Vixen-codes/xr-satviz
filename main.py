@@ -6,6 +6,9 @@ from datetime import datetime, timedelta
 import math
 
 app = Flask(__name__)
+@app.route("/")
+def home():
+    return "Hello Render!"
 CORS(app)
 
 # Predefined satellites - NO API KEY NEEDED!
