@@ -1,468 +1,1209 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>🛰️ XR-SatViz - Real-Time Satellite Tracker</title>
-  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <script src="https://unpkg.com/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      margin: 0; 
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      overflow: hidden;
-    }
-    
-    #ui-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 1000;
-    }
-    
-    #info-panel {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      background: rgba(0, 0, 0, 0.85);
-      color: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      min-width: 300px;
-      backdrop-filter: blur(10px);
-      border: 2px solid rgba(0, 255, 255, 0.3);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-      pointer-events: auto;
-    }
-    
-    #info-panel h2 {
-      margin: 0 0 15px 0;
-      font-size: 24px;
-      color: #00ffff;
-      text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-    }
-    
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-      margin: 8px 0;
-      padding: 8px;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 6px;
-    }
-    
-    .stat-label {
-      color: #aaa;
-      font-size: 14px;
-    }
-    
-    .stat-value {
-      color: #00ff88;
-      font-weight: bold;
-      font-size: 14px;
-    }
-    
-    #city-passes {
-      margin-top: 15px;
-      padding-top: 15px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .city-badge {
-      display: inline-block;
-      background: rgba(0, 255, 136, 0.2);
-      color: #00ff88;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 12px;
-      margin: 4px;
-      border: 1px solid rgba(0, 255, 136, 0.4);
-    }
-    
-    #search-container {
-      position: absolute;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 10px;
-      pointer-events: auto;
-    }
-    
-    #prompt {
-      width: 400px;
-      padding: 15px 20px;
-      font-size: 16px;
-      border: 2px solid rgba(0, 255, 255, 0.5);
-      border-radius: 25px;
-      background: rgba(0, 0, 0, 0.8);
-      color: #fff;
-      outline: none;
-      backdrop-filter: blur(10px);
-    }
-    
-    #prompt:focus {
-      border-color: #00ffff;
-      box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
-    }
-    
-    #search-btn {
-      padding: 15px 35px;
-      font-size: 16px;
-      background: linear-gradient(135deg, #00ffff, #0088ff);
-      color: #000;
-      border: none;
-      border-radius: 25px;
-      cursor: pointer;
-      font-weight: bold;
-      transition: all 0.3s;
-      box-shadow: 0 4px 15px rgba(0, 255, 255, 0.4);
-    }
-    
-    #search-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 255, 255, 0.6);
-    }
-    
-    #search-btn:active {
-      transform: translateY(0);
-    }
-    
-    #search-btn.loading {
-      background: #666;
-      cursor: wait;
-    }
-    
-    #suggestions {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: rgba(0, 0, 0, 0.85);
-      padding: 15px;
-      border-radius: 12px;
-      color: #fff;
-      backdrop-filter: blur(10px);
-      border: 2px solid rgba(255, 136, 0, 0.3);
-      pointer-events: auto;
-    }
-    
-    #suggestions h3 {
-      margin: 0 0 10px 0;
-      color: #ff8800;
-      font-size: 16px;
-    }
-    
-    .suggestion-btn {
-      display: block;
-      width: 100%;
-      padding: 8px;
-      margin: 5px 0;
-      background: rgba(255, 136, 0, 0.2);
-      border: 1px solid rgba(255, 136, 0, 0.4);
-      border-radius: 6px;
-      color: #ff8800;
-      cursor: pointer;
-      font-size: 13px;
-      transition: all 0.2s;
-    }
-    
-    .suggestion-btn:hover {
-      background: rgba(255, 136, 0, 0.4);
-      transform: translateX(5px);
-    }
-    
-    #loading {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0, 0, 0, 0.9);
-      padding: 30px 50px;
-      border-radius: 12px;
-      color: #00ffff;
-      font-size: 20px;
-      display: none;
-      pointer-events: none;
-      border: 2px solid #00ffff;
-    }
-    
-    .spinner {
-      border: 3px solid rgba(0, 255, 255, 0.3);
-      border-top: 3px solid #00ffff;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 15px;
-    }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XR-SATVIZ // Orbital Tracking Console</title>
+
+<script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#080b10;
+  --panel:#11151c;
+  --panel-raised:#171c24;
+  --line:#252c37;
+  --line-soft:#1b212a;
+  --text:#d9dce0;
+  --text-dim:#788190;
+  --amber:#e8a33d;
+  --signal:#6fae8f;
+  --danger:#c96a5a;
+  --blue:#7194bd;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+html,body{
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+}
+
+a-scene{position:fixed;inset:0}
+
+#topbar{
+  position:fixed;
+  z-index:1100;
+  inset:0 0 auto;
+  height:36px;
+  display:flex;
+  align-items:center;
+  gap:16px;
+  padding:0 14px;
+  background:rgba(17,21,28,.97);
+  border-bottom:1px solid var(--line);
+  font:11px var(--mono);
+  color:var(--text-dim);
+  letter-spacing:.04em;
+}
+
+.brand{
+  color:var(--text);
+  font-weight:600;
+  letter-spacing:.14em;
+}
+
+.sep{color:var(--line)}
+
+.dot{
+  display:inline-block;
+  width:6px;height:6px;
+  border-radius:50%;
+  background:var(--text-dim);
+  margin-right:6px;
+}
+
+.dot.live{background:var(--signal);box-shadow:0 0 0 2px rgba(111,174,143,.12)}
+.dot.down{background:var(--danger);box-shadow:0 0 0 2px rgba(201,106,90,.12)}
+
+#clock{margin-left:auto;color:var(--text)}
+
+.panel{
+  background:rgba(17,21,28,.96);
+  border:1px solid var(--line);
+  box-shadow:0 14px 35px rgba(0,0,0,.28);
+  backdrop-filter:blur(8px);
+}
+
+.panel-title{
+  padding:9px 13px;
+  border-bottom:1px solid var(--line-soft);
+  color:var(--text-dim);
+  font:10px var(--mono);
+  letter-spacing:.14em;
+  text-transform:uppercase;
+}
+
+#info-panel{
+  position:fixed;
+  z-index:1000;
+  top:52px;left:16px;
+  width:310px;
+  display:none;
+}
+
+#sat-name{
+  padding:12px 13px 10px;
+  border-bottom:1px solid var(--line-soft);
+  color:var(--text);
+  font:600 15px var(--mono);
+  overflow-wrap:anywhere;
+}
+
+#sat-name .tag{
+  display:block;
+  margin-top:4px;
+  color:var(--amber);
+  font:9px var(--mono);
+  letter-spacing:.12em;
+  font-weight:400;
+}
+
+.stat-row{
+  display:flex;
+  justify-content:space-between;
+  gap:15px;
+  padding:7px 13px;
+  border-bottom:1px solid var(--line-soft);
+}
+
+.stat-label{color:var(--text-dim);font-size:11px}
+.stat-value{
+  max-width:65%;
+  color:var(--text);
+  text-align:right;
+  font:11px var(--mono);
+  overflow-wrap:anywhere;
+}
+
+#city-list{max-height:140px;overflow:auto}
+
+.pass-row{
+  display:flex;
+  justify-content:space-between;
+  padding:6px 13px;
+  border-bottom:1px solid var(--line-soft);
+  font:11px var(--mono);
+}
+
+.pass-row .elev{color:var(--signal)}
+
+.pass-empty{
+  padding:10px 13px;
+  color:var(--text-dim);
+  font:10px var(--mono);
+}
+
+#targets{
+  position:fixed;
+  z-index:1000;
+  top:52px;right:16px;
+  width:205px;
+}
+
+.target-btn{
+  display:block;
+  width:100%;
+  padding:9px 13px;
+  background:none;
+  border:0;
+  border-bottom:1px solid var(--line-soft);
+  color:var(--text-dim);
+  text-align:left;
+  cursor:pointer;
+  font:11px var(--mono);
+}
+
+.target-btn:hover{
+  background:var(--panel-raised);
+  color:var(--text);
+}
+
+.target-btn.active{color:var(--amber)}
+
+#controls{
+  position:fixed;
+  z-index:1000;
+  right:16px;
+  bottom:72px;
+  width:205px;
+}
+
+.control-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 13px;
+  border-bottom:1px solid var(--line-soft);
+  font:10px var(--mono);
+  color:var(--text-dim);
+}
+
+.control-row:last-child{border-bottom:0}
+
+.control-row button{
+  border:1px solid var(--line);
+  background:var(--panel-raised);
+  color:var(--text-dim);
+  padding:3px 7px;
+  cursor:pointer;
+  font:10px var(--mono);
+}
+
+.control-row button:hover{color:var(--amber)}
+
+#command-bar{
+  position:fixed;
+  z-index:1000;
+  bottom:16px;left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  width:min(640px,calc(100vw - 32px));
+  height:42px;
+  background:var(--panel);
+  border:1px solid var(--line);
+}
+
+.prefix{
+  display:flex;
+  align-items:center;
+  padding:0 12px;
+  color:var(--amber);
+  border-right:1px solid var(--line);
+  font:13px var(--mono);
+}
+
+#prompt{
+  flex:1;
+  min-width:0;
+  border:0;
+  outline:0;
+  background:transparent;
+  padding:0 12px;
+  color:var(--text);
+  font:13px var(--mono);
+}
+
+#prompt::placeholder{color:var(--text-dim)}
+
+#search-btn{
+  min-width:88px;
+  border:0;
+  border-left:1px solid var(--line);
+  background:var(--panel-raised);
+  color:var(--text-dim);
+  cursor:pointer;
+  font:11px var(--mono);
+  letter-spacing:.1em;
+}
+
+#search-btn:hover:not(:disabled){color:var(--amber)}
+#search-btn:disabled{cursor:wait}
+
+#status-line{
+  position:fixed;
+  z-index:1000;
+  left:50%;
+  bottom:64px;
+  transform:translateX(-50%);
+  width:min(760px,90vw);
+  text-align:center;
+  color:var(--text-dim);
+  font:10px var(--mono);
+}
+
+#status-line.error{color:var(--danger)}
+
+#loading{
+  display:none;
+  position:fixed;
+  z-index:1050;
+  inset:0;
+  align-items:center;
+  justify-content:center;
+  pointer-events:none;
+}
+
+#loading-box{
+  padding:18px 26px;
+  border:1px solid var(--line);
+  background:rgba(17,21,28,.96);
+  color:var(--text-dim);
+  text-align:center;
+  font:10px var(--mono);
+  letter-spacing:.08em;
+}
+
+.spinner{
+  width:22px;height:22px;
+  margin:0 auto 11px;
+  border:2px solid var(--line);
+  border-top-color:var(--amber);
+  border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+
+#hint{
+  position:fixed;
+  z-index:900;
+  left:50%;
+  top:48px;
+  transform:translateX(-50%);
+  color:rgba(215,218,222,.55);
+  font:9px var(--mono);
+  letter-spacing:.06em;
+  pointer-events:none;
+}
+
+@media(max-width:720px){
+  #info-panel{
+    left:10px;top:45px;
+    width:calc(100vw - 20px);
+    max-height:48vh;
+    overflow:auto;
+  }
+
+  #targets,#controls{display:none}
+  #hint{display:none}
+  #topbar{gap:9px;padding:0 9px}
+  #topbar .sep,#epoch{display:none!important}
+  #command-bar{width:calc(100vw - 20px)}
+}
+</style>
 </head>
+
 <body>
-  <a-scene background="color: #000000">
-    <!-- Earth with texture -->
-    <a-sphere id="earth" position="0 0 0" radius="2" 
-              color="#1a4d7a"
-              animation="property: rotation; to: 0 360 0; loop: true; dur: 120000; easing: linear">
-      <a-sphere radius="2.01" color="#2a6da0" opacity="0.3"></a-sphere>
-    </a-sphere>
-    
-    <!-- Atmosphere glow -->
-    <a-sphere position="0 0 0" radius="2.2" 
-              material="shader: flat; color: #4da6ff; opacity: 0.1; transparent: true"></a-sphere>
-    
-    <!-- Satellite container -->
-    <a-entity id="satellite-container"></a-entity>
-    
-    <!-- City markers container -->
-    <a-entity id="cities-container"></a-entity>
-    
-    <!-- Orbit path container -->
-    <a-entity id="orbit-path"></a-entity>
-    
-    <!-- Stars -->
-    <a-sky color="#000000"></a-sky>
-    
-    <!-- Camera -->
-    <a-entity id="camera-rig" position="0 0 15">
-      <a-camera wasd-controls look-controls></a-camera>
-    </a-entity>
-    
-    <!-- Lighting -->
-    <a-light type="ambient" intensity="0.4"></a-light>
-    <a-light type="directional" position="5 3 5" intensity="0.8"></a-light>
-    <a-light type="point" position="-5 -3 -5" intensity="0.3" color="#4da6ff"></a-light>
-  </a-scene>
 
-  <div id="ui-container">
-    <div id="info-panel" style="display:none;">
-      <h2 id="sat-name">🛰️ Satellite</h2>
-      <div class="stat-row">
-        <span class="stat-label">Altitude</span>
-        <span class="stat-value" id="altitude">-</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Velocity</span>
-        <span class="stat-value" id="velocity">-</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Latency</span>
-        <span class="stat-value" id="latency">-</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Position</span>
-        <span class="stat-value" id="coords">-</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Ground Track</span>
-        <span class="stat-value" id="ground-track">-</span>
-      </div>
-      <div id="city-passes">
-        <div class="stat-label" style="margin-bottom: 8px;">📍 Near Cities:</div>
-        <div id="city-list"></div>
-      </div>
-    </div>
+<div id="topbar">
+  <span class="brand">XR-SATVIZ</span>
+  <span class="sep">/</span>
+  <span><span class="dot" id="link-dot"></span><span id="link-status">connecting</span></span>
+  <span class="sep">/</span>
+  <span id="epoch">epoch --</span>
+  <span id="clock">--:--:--Z</span>
+</div>
 
-    <div id="suggestions">
-      <h3>🚀 Try These:</h3>
-      <button class="suggestion-btn" onclick="quickSearch('ISS')">🛰️ ISS</button>
-      <button class="suggestion-btn" onclick="quickSearch('Starlink')">⭐ Starlink</button>
-      <button class="suggestion-btn" onclick="quickSearch('Hubble')">🔭 Hubble</button>
-      <button class="suggestion-btn" onclick="quickSearch('NOAA')">🌍 NOAA</button>
-      <button class="suggestion-btn" onclick="quickSearch('Tiangong')">🏠 Tiangong</button>
-    </div>
+<div id="hint">DRAG TO ORBIT VIEW · SCROLL TO ZOOM · RIGHT PANEL = DISPLAY CONTROLS</div>
 
-    <div id="search-container">
-      <input type="text" id="prompt" 
-             placeholder="Try: 'Show me ISS' or 'Where is Starlink?'" 
-             value="show me ISS">
-      <button id="search-btn" onclick="searchSatellite()">🔍 GO</button>
-    </div>
+<a-scene
+  background="color:#080b10"
+  vr-mode-ui="enabled:true"
+  renderer="antialias:true"
+>
+  <a-assets>
+    <!-- NASA Blue Marble style Earth texture (CORS-enabled). If the map
+         seam looks rotated relative to the city dots, tweak the
+         rotation="0 X 0" value on the #earth sphere below. -->
+    <img id="earthTexture" crossorigin="anonymous"
+         src="https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg">
+    <img id="earthSpecular" crossorigin="anonymous"
+         src="https://threejs.org/examples/textures/planets/earth_specular_2048.jpg">
+  </a-assets>
 
-    <div id="loading">
-      <div class="spinner"></div>
-      Tracking satellite...
-    </div>
+  <!-- Earth: radius must match backend SCENE_EARTH_RADIUS (currently 3). -->
+  <a-sphere
+    id="earth"
+    position="0 0 0"
+    radius="3"
+    rotation="0 -90 0"
+    segments-width="64"
+    segments-height="48"
+    material="shader:standard;src:#earthTexture;roughness:.85;metalness:.05;color:#ffffff">
+  </a-sphere>
+
+  <a-sphere
+    position="0 0 0"
+    radius="3.009"
+    segments-width="48"
+    segments-height="32"
+    material="shader:standard;wireframe:true;color:#455264;opacity:.18;transparent:true">
+  </a-sphere>
+
+  <a-sphere
+    position="0 0 0"
+    radius="3.24"
+    material="shader:flat;color:#6fae8f;opacity:.045;transparent:true;side:back">
+  </a-sphere>
+
+  <a-entity id="footprint-container"></a-entity>
+  <a-entity id="orbit-path"></a-entity>
+  <a-entity id="cities-container"></a-entity>
+  <a-entity id="satellite-container"></a-entity>
+  <a-entity id="starfield"></a-entity>
+
+  <a-sky color="#080b10"></a-sky>
+
+  <!-- Camera is controlled by custom orbit navigation below. -->
+  <a-entity id="camera-rig">
+    <a-camera id="camera" position="0 0 12.75" look-controls="enabled:false" wasd-controls="enabled:false"></a-camera>
+  </a-entity>
+
+  <a-light type="ambient" intensity=".58"></a-light>
+  <a-light type="directional" position="5 3 5" intensity=".62"></a-light>
+</a-scene>
+
+<div id="info-panel" class="panel">
+  <div id="sat-name">--<span class="tag">no target locked</span></div>
+
+  <div class="stat-row"><span class="stat-label">NORAD</span><span class="stat-value" id="norad">-</span></div>
+  <div class="stat-row"><span class="stat-label">Altitude</span><span class="stat-value" id="altitude">-</span></div>
+  <div class="stat-row"><span class="stat-label">Velocity</span><span class="stat-value" id="velocity">-</span></div>
+  <div class="stat-row"><span class="stat-label">Period</span><span class="stat-value" id="period">-</span></div>
+  <div class="stat-row"><span class="stat-label">Inclination</span><span class="stat-value" id="inclination">-</span></div>
+  <div class="stat-row"><span class="stat-label">Eccentricity</span><span class="stat-value" id="eccentricity">-</span></div>
+  <div class="stat-row"><span class="stat-label">Light-time</span><span class="stat-value" id="latency">-</span></div>
+  <div class="stat-row"><span class="stat-label">Ground track</span><span class="stat-value" id="ground-track">-</span></div>
+  <div class="stat-row"><span class="stat-label">Trajectory</span><span class="stat-value" id="trajectory-duration">-</span></div>
+
+  <div>
+    <div class="panel-title">Above horizon</div>
+    <div id="city-list"></div>
   </div>
+</div>
 
-  <script>
-    const API_URL = 'https://xr-satviz.onrender.com';
-    let animationFrame = 0;
-    let currentTrajectory = [];
+<div id="targets" class="panel">
+  <div class="panel-title">Featured targets</div>
+  <button class="target-btn" data-q="25544" onclick="quickSearch('25544',this)">ISS · 25544</button>
+  <button class="target-btn" data-q="20580" onclick="quickSearch('20580',this)">Hubble · 20580</button>
+  <button class="target-btn" data-q="28654" onclick="quickSearch('28654',this)">NOAA 18 · 28654</button>
+  <button class="target-btn" data-q="41866" onclick="quickSearch('41866',this)">GOES 16 · 41866</button>
+  <button class="target-btn" data-q="39084" onclick="quickSearch('39084',this)">Landsat 8 · 39084</button>
+  <button class="target-btn" data-q="24876" onclick="quickSearch('24876',this)">GPS · 24876</button>
+  <button class="target-btn" data-q="48274" onclick="quickSearch('48274',this)">Tiangong · 48274</button>
+</div>
 
-    async function searchSatellite() {
-      const prompt = document.getElementById('prompt').value;
-      const btn = document.getElementById('search-btn');
-      const loading = document.getElementById('loading');
-      
-      btn.classList.add('loading');
-      btn.textContent = '⏳ Searching...';
-      loading.style.display = 'block';
-      
-      try {
-        const res = await fetch(API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: prompt
-        });
-        
-        const data = await res.json();
-        
-        if (data.success) {
-          updateScene(data);
-        } else {
-          alert('❌ ' + (data.message || data.error));
-        }
-      } catch (error) {
-        console.error('Error:', error);
-        alert('⚠️ Cannot connect to server.\nMake sure Flask is running: python main.py');
-      } finally {
-        btn.classList.remove('loading');
-        btn.textContent = '🔍 GO';
-        loading.style.display = 'none';
-      }
-    }
+<div id="controls" class="panel">
+  <div class="panel-title">Display</div>
+  <div class="control-row">
+    <span>Orbit path</span>
+    <button id="orbit-toggle" onclick="toggleLayer('orbit')">ON</button>
+  </div>
+  <div class="control-row">
+    <span>Coverage</span>
+    <button id="footprint-toggle" onclick="toggleLayer('footprint')">ON</button>
+  </div>
+  <div class="control-row">
+    <span>City markers</span>
+    <button id="cities-toggle" onclick="toggleLayer('cities')">ON</button>
+  </div>
+  <div class="control-row">
+    <span>Reset camera</span>
+    <button onclick="resetCamera()">RESET</button>
+  </div>
+</div>
 
-    function quickSearch(satellite) {
-      document.getElementById('prompt').value = satellite;
-      searchSatellite();
-    }
+<div id="status-line"></div>
 
-    function updateScene(data) {
-      console.log('Received data:', data);
-      
-      // Update info panel
-      document.getElementById('info-panel').style.display = 'block';
-      document.getElementById('sat-name').textContent = '🛰️ ' + data.name;
-      document.getElementById('altitude').textContent = data.stats.altitude + ' km';
-      document.getElementById('velocity').textContent = data.stats.velocity + ' km/s';
-      document.getElementById('latency').textContent = data.stats.latency + ' ms';
-      document.getElementById('coords').textContent = 
-        `(${data.position.x.toFixed(1)}, ${data.position.y.toFixed(1)}, ${data.position.z.toFixed(1)})`;
-      document.getElementById('ground-track').textContent = 
-        `${data.groundTrack.lat.toFixed(2)}°, ${data.groundTrack.lon.toFixed(2)}°`;
-      
-      // Update city passes
-      const cityList = document.getElementById('city-list');
-      if (data.cityPasses && data.cityPasses.length > 0) {
-        cityList.innerHTML = data.cityPasses
-          .map(p => `<span class="city-badge">${p.city} (${p.distance} km)</span>`)
-          .join('');
-      } else {
-        cityList.innerHTML = '<span class="city-badge">No cities nearby</span>';
-      }
-      
-      // Clear previous satellite
-      const container = document.getElementById('satellite-container');
-      container.innerHTML = '';
-      
-      // Create satellite
-      const sat = document.createElement('a-entity');
-      sat.innerHTML = `
-        <a-box color="#ff4400" scale="0.2 0.2 0.2" 
-               position="${data.position.x} ${data.position.y} ${data.position.z}"
-               animation="property: rotation; to: 0 360 0; loop: true; dur: 3000">
-        </a-box>
-        <a-sphere color="#ffaa00" radius="0.05" opacity="0.6"
-                  position="${data.position.x} ${data.position.y} ${data.position.z}">
-          <a-animation attribute="scale" to="3 3 3" dur="2000" repeat="indefinite"></a-animation>
-          <a-animation attribute="opacity" to="0" dur="2000" repeat="indefinite"></a-animation>
-        </a-sphere>
-      `;
-      container.appendChild(sat);
-      
-      // Draw orbit path
-      drawOrbitPath(data.trajectory);
-      
-      // Draw cities
-      drawCities(data.cities);
-      
-      // Animate satellite along orbit
-      currentTrajectory = data.trajectory;
-      animateSatellite();
-    }
+<div id="loading">
+  <div id="loading-box">
+    <div class="spinner"></div>
+    ACQUIRING PUBLIC ORBITAL DATA
+  </div>
+</div>
 
-    function drawOrbitPath(trajectory) {
-      const pathContainer = document.getElementById('orbit-path');
-      pathContainer.innerHTML = '';
-      
-      for (let i = 0; i < trajectory.length - 1; i += 5) {
-        const p1 = trajectory[i];
-        const p2 = trajectory[i + 5] || trajectory[trajectory.length - 1];
-        
-        const line = document.createElement('a-entity');
-        line.setAttribute('line', {
-          start: `${p1.x} ${p1.y} ${p1.z}`,
-          end: `${p2.x} ${p2.y} ${p2.z}`,
-          color: '#00ffff',
-          opacity: 0.3
-        });
-        pathContainer.appendChild(line);
-      }
-    }
+<div id="command-bar">
+  <span class="prefix">&gt;</span>
+  <input
+    id="prompt"
+    type="text"
+    value="25544"
+    placeholder="satellite name or NORAD catalog number..."
+    autocomplete="off"
+  >
+  <button id="search-btn" onclick="searchSatellite()">TRACK</button>
+</div>
 
-    function drawCities(cities) {
-      const citiesContainer = document.getElementById('cities-container');
-      citiesContainer.innerHTML = '';
-      
-      cities.forEach(city => {
-        // Convert lat/lon to 3D position on sphere
-        const lat = city.lat * Math.PI / 180;
-        const lon = city.lon * Math.PI / 180;
-        const radius = 2.05;
-        
-        const x = radius * Math.cos(lat) * Math.cos(lon);
-        const y = radius * Math.sin(lat);
-        const z = -radius * Math.cos(lat) * Math.sin(lon);
-        
-        const marker = document.createElement('a-sphere');
-        marker.setAttribute('position', `${x} ${y} ${z}`);
-        marker.setAttribute('radius', '0.05');
-        marker.setAttribute('color', '#ffff00');
-        marker.setAttribute('opacity', '0.8');
-        citiesContainer.appendChild(marker);
-        
-        // Add city label
-        const text = document.createElement('a-text');
-        text.setAttribute('value', city.name);
-        text.setAttribute('position', `${x * 1.1} ${y * 1.1} ${z * 1.1}`);
-        text.setAttribute('scale', '0.5 0.5 0.5');
-        text.setAttribute('color', '#ffff00');
-        text.setAttribute('align', 'center');
-        citiesContainer.appendChild(text);
-      });
-    }
+<script>
+/*
+ * Local:
+ *   python main.py
+ *   Live Server -> automatically uses http://localhost:5000
+ *
+ * Production:
+ *   automatically uses your Render backend.
+ */
+const API_URL =
+  (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://localhost:5000'
+    : 'https://xr-satviz.onrender.com';
 
-    function animateSatellite() {
-      if (currentTrajectory.length === 0) return;
-      
-      const sat = document.querySelector('#satellite-container a-box');
-      if (!sat) return;
-      
-      animationFrame = (animationFrame + 1) % currentTrajectory.length;
-      const pos = currentTrajectory[animationFrame];
-      
-      sat.setAttribute('position', `${pos.x} ${pos.y} ${pos.z}`);
-      
-      setTimeout(() => animateSatellite(), 50);
-    }
+const EARTH_RADIUS = 3; // must match <a-sphere id="earth" radius="..."> and backend SCENE_EARTH_RADIUS
 
-    // Handle Enter key
-    document.getElementById('prompt').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') searchSatellite();
+// These two must match the backend constants (EARTH_RADIUS_KM, FOOTPRINT_LIFT
+// in main.py) exactly, since footprint geometry is now recomputed here on
+// the client every animation frame instead of once on the server.
+const EARTH_RADIUS_KM = 6371.0;
+const FOOTPRINT_LIFT = 1.01;
+const FOOTPRINT_SEGMENTS = 64;
+const ORBIT_TUBE_RADIUS = 0.018; // thickness of the drawn orbit ring
+
+let currentTrajectory = [];
+let animationFrame = 0;
+let playbackTimer = null;
+let requestInProgress = false;
+
+const layers = {
+  orbit: true,
+  footprint: true,
+  cities: true
+};
+
+// ---------- clock ----------
+function tickClock(){
+  const now = new Date();
+  const hh = String(now.getUTCHours()).padStart(2,'0');
+  const mm = String(now.getUTCMinutes()).padStart(2,'0');
+  const ss = String(now.getUTCSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent = `${hh}:${mm}:${ss}Z`;
+}
+tickClock();
+setInterval(tickClock,1000);
+
+// ---------- UI ----------
+function setLink(state,label){
+  const dot = document.getElementById('link-dot');
+  dot.className = 'dot ' + (state === 'up' ? 'live' : state === 'down' ? 'down' : '');
+  document.getElementById('link-status').textContent = label;
+}
+
+function setStatus(message,error=false){
+  const el = document.getElementById('status-line');
+  el.textContent = message || '';
+  el.className = error ? 'error' : '';
+}
+
+function setLoading(show){
+  document.getElementById('loading').style.display = show ? 'flex' : 'none';
+}
+
+function fmtPeriod(minutes){
+  if(minutes == null) return '-';
+  if(minutes < 120) return `${minutes.toFixed(1)} min`;
+  return `${(minutes/60).toFixed(2)} h`;
+}
+
+function fmtNum(value, digits, suffix=''){
+  if(value === null || value === undefined || Number.isNaN(value)) return '-';
+  return `${Number(value).toFixed(digits)}${suffix}`;
+}
+
+// ---------- search ----------
+async function searchSatellite(){
+  if(requestInProgress) return;
+
+  const query = document.getElementById('prompt').value.trim();
+  if(!query){
+    setStatus('enter a satellite name or NORAD catalog number',true);
+    return;
+  }
+
+  requestInProgress = true;
+  const button = document.getElementById('search-btn');
+  button.disabled = true;
+  button.textContent = '...';
+
+  setLink('connecting','querying CelesTrak');
+  setStatus('acquiring current public orbital elements...');
+  setLoading(true);
+
+  try{
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(),30000);
+
+    const response = await fetch(API_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:query,
+      signal:controller.signal
     });
 
-    // Auto-search on load
-    window.addEventListener('load', () => {
-      setTimeout(() => searchSatellite(), 1000);
+    clearTimeout(timeout);
+
+    const data = await response.json();
+
+    if(!response.ok || !data.success){
+      throw new Error(data.message || `HTTP ${response.status}`);
+    }
+
+    updateScene(data);
+    setLink('up','link established');
+    setStatus('');
+
+    document.querySelectorAll('.target-btn').forEach(btn => {
+      btn.classList.toggle(
+        'active',
+        btn.dataset.q.toLowerCase() === query.toLowerCase()
+      );
     });
-  </script>
+
+  }catch(error){
+    console.error(error);
+
+    if(error.name === 'AbortError'){
+      setStatus('request timed out — the Render server may be waking from a cold start',true);
+    }else{
+      setStatus(error.message || 'unable to retrieve orbital data',true);
+    }
+
+    setLink('down','query failed');
+
+  }finally{
+    requestInProgress = false;
+    button.disabled = false;
+    button.textContent = 'TRACK';
+    setLoading(false);
+  }
+}
+
+function quickSearch(query,button){
+  document.getElementById('prompt').value = query;
+  document.querySelectorAll('.target-btn').forEach(b => b.classList.remove('active'));
+  if(button) button.classList.add('active');
+  searchSatellite();
+}
+
+// ---------- scene ----------
+function updateScene(data){
+  const panel = document.getElementById('info-panel');
+  panel.style.display = 'block';
+
+  const title = document.getElementById('sat-name');
+  title.textContent = data.name;
+
+  const tag = document.createElement('span');
+  tag.className = 'tag';
+  tag.textContent = `NORAD ${data.norad ?? '-'} · PUBLIC GP/OMM`;
+  title.appendChild(tag);
+
+  document.getElementById('norad').textContent = data.norad ?? '-';
+  document.getElementById('altitude').textContent = fmtNum(data.stats.altitude, 1, ' km');
+  document.getElementById('velocity').textContent = fmtNum(data.stats.velocity, 2, ' km/s');
+  document.getElementById('period').textContent = fmtPeriod(data.stats.periodMinutes);
+  document.getElementById('inclination').textContent = fmtNum(data.stats.inclinationDeg, 2, '°');
+  document.getElementById('eccentricity').textContent =
+    (data.stats.eccentricity ?? null) === null ? '-' : Number(data.stats.eccentricity).toFixed(6);
+  document.getElementById('latency').textContent = fmtNum(data.stats.lightTimeMs, 2, ' ms');
+  document.getElementById('ground-track').textContent =
+    data.groundTrack ? `${data.groundTrack.lat.toFixed(2)}°, ${data.groundTrack.lon.toFixed(2)}°` : '-';
+  document.getElementById('trajectory-duration').textContent =
+    fmtPeriod(data.trajectoryDurationMinutes);
+
+  document.getElementById('epoch').textContent =
+    `epoch ${new Date().toISOString().slice(0,16).replace('T',' ')}`;
+
+  renderCityPasses(data.cityPasses || []);
+  drawOrbitPath(data.trajectory || []);
+  drawCities(data.cities || []);
+  createSatellite(data.position);
+
+  currentTrajectory = data.trajectory || [];
+  animationFrame = 0;
+
+  // Seed the footprint from the satellite's current ground track before
+  // the animation loop takes over on subsequent frames.
+  if(data.groundTrack){
+    updateFootprint(data.groundTrack.lat, data.groundTrack.lon, data.stats.altitude);
+  }
+
+  if(playbackTimer) clearTimeout(playbackTimer);
+  animateSatellite();
+}
+
+// ---------- satellite marker ----------
+//
+// A small stylized satellite (bus + two solar panels + antenna) instead
+// of a plain cube. The outer #satellite-marker entity carries the actual
+// world position (updated every animation frame); everything inside it
+// is positioned relative to that, and the "sat-body" group spins slowly
+// for a bit of visual life.
+function createSatellite(position){
+  const container = document.getElementById('satellite-container');
+  container.innerHTML = '';
+
+  if(!position) return;
+
+  const marker = document.createElement('a-entity');
+  marker.setAttribute('id','satellite-marker');
+  marker.setAttribute('position',`${position.x} ${position.y} ${position.z}`);
+
+  const body = document.createElement('a-entity');
+  body.setAttribute('class','sat-body');
+  body.setAttribute(
+    'animation',
+    'property:rotation;to:0 360 0;loop:true;dur:6000;easing:linear'
+  );
+
+  const bus = document.createElement('a-octahedron');
+  bus.setAttribute('radius','.05');
+  bus.setAttribute('color','#e8a33d');
+  bus.setAttribute('material','shader:flat');
+  body.appendChild(bus);
+
+  const antenna = document.createElement('a-cylinder');
+  antenna.setAttribute('radius','.006');
+  antenna.setAttribute('height','.075');
+  antenna.setAttribute('position','0 .07 0');
+  antenna.setAttribute('color','#c7ccd3');
+  antenna.setAttribute('material','shader:flat');
+  body.appendChild(antenna);
+
+  [-1,1].forEach(side=>{
+    const strut = document.createElement('a-cylinder');
+    strut.setAttribute('radius','.004');
+    strut.setAttribute('height','.05');
+    strut.setAttribute('rotation','0 0 90');
+    strut.setAttribute('position',`${side*.07} 0 0`);
+    strut.setAttribute('color','#5b6472');
+    strut.setAttribute('material','shader:flat');
+    body.appendChild(strut);
+
+    const panel = document.createElement('a-plane');
+    panel.setAttribute('width','.12');
+    panel.setAttribute('height','.055');
+    panel.setAttribute('position',`${side*.16} 0 0`);
+    panel.setAttribute('color','#7194bd');
+    panel.setAttribute('material','shader:flat;side:double;opacity:.92');
+    body.appendChild(panel);
+  });
+
+  const pulse = document.createElement('a-sphere');
+  pulse.setAttribute('class','sat-halo');
+  pulse.setAttribute('radius','.035');
+  pulse.setAttribute('color','#e8a33d');
+  pulse.setAttribute('opacity','.65');
+  pulse.setAttribute(
+    'animation__scale',
+    'property:scale;from:1 1 1;to:4 4 4;loop:true;dur:1800;easing:easeOutSine'
+  );
+  pulse.setAttribute(
+    'animation__fade',
+    'property:material.opacity;from:.65;to:0;loop:true;dur:1800;easing:easeOutSine'
+  );
+
+  marker.appendChild(body);
+  marker.appendChild(pulse);
+  container.appendChild(marker);
+}
+
+// ---------- orbit ----------
+//
+// The backend now returns a trajectory that spans exactly one orbital
+// period and snaps back to its own starting point (see calculate_
+// trajectory() in main.py), so this is a genuinely closed loop — the
+// satellite's real orbital path, not an arbitrary open arc. It's rendered
+// as a single smooth, thick, translucent tube (via three.js TubeGeometry
+// through a closed Catmull-Rom curve) rather than a chain of thin
+// disconnected segments, so it reads as one continuous ring around the
+// globe instead of flickering dashes.
+let orbitTubeMesh = null;
+
+function drawOrbitPath(trajectory){
+  const container = document.getElementById('orbit-path');
+
+  if(orbitTubeMesh){
+    container.object3D.remove(orbitTubeMesh);
+    orbitTubeMesh.geometry.dispose();
+    orbitTubeMesh.material.dispose();
+    orbitTubeMesh = null;
+  }
+
+  if(!layers.orbit || trajectory.length < 4) return;
+
+  const THREE = AFRAME.THREE;
+
+  const points = trajectory.map(p => new THREE.Vector3(p.x, p.y, p.z));
+
+  const curve = new THREE.CatmullRomCurve3(points, true, 'catmullrom', 0.4);
+
+  const tubularSegments = Math.max(64, Math.min(500, trajectory.length * 2));
+
+  const geometry = new THREE.TubeGeometry(
+    curve,
+    tubularSegments,
+    ORBIT_TUBE_RADIUS,
+    8,
+    true
+  );
+
+  const material = new THREE.MeshBasicMaterial({
+    color: 0x6fae8f,
+    transparent: true,
+    opacity: 0.4,
+    depthWrite: false,
+    side: THREE.DoubleSide
+  });
+
+  orbitTubeMesh = new THREE.Mesh(geometry, material);
+  container.object3D.add(orbitTubeMesh);
+}
+
+// ---------- coverage footprint ----------
+//
+// This mirrors calculate_footprint()/geo_to_scene() in the backend
+// (main.py) exactly, so the footprint circle's geometry matches what the
+// server would compute for the same lat/lon/altitude. It's re-run on the
+// client (rather than fetched once from the server) because the satellite
+// marker is animated locally through the whole trajectory — a footprint
+// computed once at request time would stay pinned to the satellite's
+// starting position while the marker flew on ahead of it.
+
+function geoToSceneJS(latDeg, lonDeg, altKm){
+  const radiusKm = EARTH_RADIUS_KM + altKm;
+  const lat = latDeg * Math.PI / 180;
+  const lon = lonDeg * Math.PI / 180;
+  const scale = EARTH_RADIUS / EARTH_RADIUS_KM;
+
+  return {
+    x: radiusKm * Math.cos(lat) * Math.cos(lon) * scale,
+    y: radiusKm * Math.sin(lat) * scale,
+    z: -radiusKm * Math.cos(lat) * Math.sin(lon) * scale
+  };
+}
+
+function computeFootprintJS(latDeg, lonDeg, altKm, n=FOOTPRINT_SEGMENTS){
+  if(altKm == null || altKm <= 0) return null;
+
+  const horizonAngle = Math.acos(EARTH_RADIUS_KM / (EARTH_RADIUS_KM + altKm));
+  const lat0 = latDeg * Math.PI / 180;
+  const lon0 = lonDeg * Math.PI / 180;
+
+  const points = [];
+
+  for(let i=0;i<n;i++){
+    const bearing = 2 * Math.PI * i / n;
+
+    const lat = Math.asin(
+      Math.sin(lat0) * Math.cos(horizonAngle) +
+      Math.cos(lat0) * Math.sin(horizonAngle) * Math.cos(bearing)
+    );
+
+    const lon = lon0 + Math.atan2(
+      Math.sin(bearing) * Math.sin(horizonAngle) * Math.cos(lat0),
+      Math.cos(horizonAngle) - Math.sin(lat0) * Math.sin(lat)
+    );
+
+    const p = geoToSceneJS(lat * 180 / Math.PI, lon * 180 / Math.PI, 0);
+
+    points.push({
+      x: p.x * FOOTPRINT_LIFT,
+      y: p.y * FOOTPRINT_LIFT,
+      z: p.z * FOOTPRINT_LIFT
+    });
+  }
+
+  const centre = geoToSceneJS(latDeg, lonDeg, 0);
+
+  return {
+    points,
+    centre: {
+      x: centre.x * FOOTPRINT_LIFT,
+      y: centre.y * FOOTPRINT_LIFT,
+      z: centre.z * FOOTPRINT_LIFT
+    }
+  };
+}
+
+// Persistent pool of line entities + a centre marker, reused across
+// updates instead of being torn down and recreated every animation frame
+// (recreating ~64 DOM entities 16x/sec was unnecessary churn).
+let footprintPool = null;
+
+function ensureFootprintPool(){
+  if(footprintPool) return footprintPool;
+
+  const container = document.getElementById('footprint-container');
+  container.innerHTML = '';
+
+  const lines = [];
+
+  for(let i=0;i<FOOTPRINT_SEGMENTS;i++){
+    const line = document.createElement('a-entity');
+    line.setAttribute('line',{
+      start:'0 0 0',
+      end:'0 0 0',
+      color:'#e8a33d',
+      opacity:.65
+    });
+    container.appendChild(line);
+    lines.push(line);
+  }
+
+  const centre = document.createElement('a-sphere');
+  centre.setAttribute('radius','.035');
+  centre.setAttribute('color','#e8a33d');
+  centre.setAttribute('opacity','.35');
+  container.appendChild(centre);
+
+  footprintPool = {container, lines, centre};
+  return footprintPool;
+}
+
+function updateFootprint(latDeg, lonDeg, altKm){
+  const pool = ensureFootprintPool();
+
+  const footprint = computeFootprintJS(latDeg, lonDeg, altKm);
+
+  if(!footprint){
+    pool.lines.forEach(line => line.setAttribute('line','opacity',0));
+    pool.centre.setAttribute('opacity',0);
+    return;
+  }
+
+  const points = footprint.points;
+
+  for(let i=0;i<pool.lines.length;i++){
+    const a = points[i];
+    const b = points[(i+1) % points.length];
+
+    pool.lines[i].setAttribute('line',{
+      start:`${a.x} ${a.y} ${a.z}`,
+      end:`${b.x} ${b.y} ${b.z}`,
+      color:'#e8a33d',
+      opacity:.65
+    });
+  }
+
+  pool.centre.setAttribute(
+    'position',
+    `${footprint.centre.x} ${footprint.centre.y} ${footprint.centre.z}`
+  );
+  pool.centre.setAttribute('opacity',.35);
+}
+
+// ---------- cities ----------
+function drawCities(cities){
+  const container = document.getElementById('cities-container');
+  container.innerHTML = '';
+
+  if(!layers.cities) return;
+
+  const radius = EARTH_RADIUS * 1.018;
+
+  cities.forEach(city=>{
+    const lat = Number(city.lat)*Math.PI/180;
+    const lon = Number(city.lon)*Math.PI/180;
+
+    const x = radius*Math.cos(lat)*Math.cos(lon);
+    const y = radius*Math.sin(lat);
+    const z = -radius*Math.cos(lat)*Math.sin(lon);
+
+    const marker = document.createElement('a-sphere');
+    marker.setAttribute('position',`${x} ${y} ${z}`);
+    marker.setAttribute('radius','.022');
+    marker.setAttribute('color','#7a8290');
+
+    const label = document.createElement('a-text');
+    label.setAttribute('value',city.name);
+    label.setAttribute('position',`${x*1.075} ${y*1.075} ${z*1.075}`);
+    label.setAttribute('scale','.28 .28 .28');
+    label.setAttribute('align','center');
+    label.setAttribute('side','double');
+    label.setAttribute('color','#7a8290');
+
+    container.appendChild(marker);
+    container.appendChild(label);
+  });
+}
+
+// ---------- city list ----------
+function renderCityPasses(passes){
+  const list = document.getElementById('city-list');
+  list.innerHTML = '';
+
+  if(!passes.length){
+    list.innerHTML = '<div class="pass-empty">below horizon at tracked cities</div>';
+    return;
+  }
+
+  passes.forEach(pass=>{
+    const row=document.createElement('div');
+    row.className='pass-row';
+
+    const city=document.createElement('span');
+    city.textContent=pass.city;
+
+    const elev=document.createElement('span');
+    elev.className='elev';
+    elev.textContent=`${Number(pass.elevation_deg).toFixed(1)}°`;
+
+    row.appendChild(city);
+    row.appendChild(elev);
+    list.appendChild(row);
+  });
+}
+
+// ---------- trajectory animation ----------
+let footprintFrameCounter = 0;
+
+function animateSatellite(){
+  if(!currentTrajectory.length) return;
+
+  const marker=document.getElementById('satellite-marker');
+  if(!marker) return;
+
+  const p=currentTrajectory[animationFrame];
+  if(!p) return;
+
+  marker.setAttribute('position',`${p.x} ${p.y} ${p.z}`);
+
+  // Keep the coverage circle glued to the satellite as it moves along the
+  // trajectory. Throttled to every 3rd frame (~180ms) since updating 64
+  // line segments every single 60ms tick is unnecessary for something
+  // that only needs to visually track, not render at full frame rate.
+  if(layers.footprint && p.lat != null && p.lon != null){
+    footprintFrameCounter++;
+    if(footprintFrameCounter % 3 === 0){
+      updateFootprint(p.lat, p.lon, p.alt);
+    }
+  }
+
+  animationFrame=(animationFrame+1)%currentTrajectory.length;
+
+  // Accelerated visual playback: the full returned trajectory is replayed.
+  playbackTimer=setTimeout(animateSatellite,60);
+}
+
+// ---------- layers ----------
+function toggleLayer(layer){
+  layers[layer]=!layers[layer];
+
+  const button=document.getElementById(`${layer}-toggle`);
+  button.textContent=layers[layer]?'ON':'OFF';
+
+  if(layer==='orbit') drawOrbitPath(currentTrajectory);
+
+  if(layer==='footprint'){
+    document.getElementById('footprint-container').object3D.visible=layers.footprint;
+
+    // Refresh immediately when switched back on, instead of waiting up to
+    // 3 animation frames for the throttle in animateSatellite() to fire.
+    if(layers.footprint){
+      const p = currentTrajectory[animationFrame];
+      if(p && p.lat != null && p.lon != null){
+        updateFootprint(p.lat, p.lon, p.alt);
+      }
+    }
+  }
+
+  if(layer==='cities'){
+    document.getElementById('cities-container').object3D.visible=layers.cities;
+  }
+}
+
+// ---------- camera orbit navigation ----------
+const cameraState={
+  yaw:0.25,
+  pitch:0.10,
+  distance:12.75,
+  dragging:false,
+  lastX:0,
+  lastY:0
+};
+
+function applyCamera(){
+  const pitchLimit=1.42;
+  cameraState.pitch=Math.max(-pitchLimit,Math.min(pitchLimit,cameraState.pitch));
+  cameraState.distance=Math.max(5.1,Math.min(27,cameraState.distance));
+
+  const x=cameraState.distance*Math.cos(cameraState.pitch)*Math.sin(cameraState.yaw);
+  const y=cameraState.distance*Math.sin(cameraState.pitch);
+  const z=cameraState.distance*Math.cos(cameraState.pitch)*Math.cos(cameraState.yaw);
+
+  const camera=document.getElementById('camera');
+  camera.setAttribute('position',`${x} ${y} ${z}`);
+
+  const yawDeg=cameraState.yaw*180/Math.PI;
+  const pitchDeg=-cameraState.pitch*180/Math.PI;
+
+  camera.setAttribute('rotation',`${pitchDeg} ${yawDeg} 0`);
+}
+
+function resetCamera(){
+  cameraState.yaw=.25;
+  cameraState.pitch=.10;
+  cameraState.distance=12.75;
+  applyCamera();
+}
+
+const canvasContainer=document.querySelector('a-scene');
+
+canvasContainer.addEventListener('mousedown',event=>{
+  if(event.button!==0) return;
+
+  cameraState.dragging=true;
+  cameraState.lastX=event.clientX;
+  cameraState.lastY=event.clientY;
+});
+
+window.addEventListener('mousemove',event=>{
+  if(!cameraState.dragging) return;
+
+  const dx=event.clientX-cameraState.lastX;
+  const dy=event.clientY-cameraState.lastY;
+
+  cameraState.lastX=event.clientX;
+  cameraState.lastY=event.clientY;
+
+  cameraState.yaw-=dx*.006;
+  cameraState.pitch-=dy*.006;
+
+  applyCamera();
+});
+
+window.addEventListener('mouseup',()=>{
+  cameraState.dragging=false;
+});
+
+canvasContainer.addEventListener('wheel',event=>{
+  event.preventDefault();
+  cameraState.distance+=event.deltaY*.008;
+  applyCamera();
+},{passive:false});
+
+// Touch orbit/zoom
+let touchDistance=null;
+
+canvasContainer.addEventListener('touchstart',event=>{
+  if(event.touches.length===1){
+    cameraState.dragging=true;
+    cameraState.lastX=event.touches[0].clientX;
+    cameraState.lastY=event.touches[0].clientY;
+  }else if(event.touches.length===2){
+    cameraState.dragging=false;
+    touchDistance=Math.hypot(
+      event.touches[0].clientX-event.touches[1].clientX,
+      event.touches[0].clientY-event.touches[1].clientY
+    );
+  }
+},{passive:true});
+
+canvasContainer.addEventListener('touchmove',event=>{
+  if(event.touches.length===1 && cameraState.dragging){
+    const x=event.touches[0].clientX;
+    const y=event.touches[0].clientY;
+
+    cameraState.yaw-=(x-cameraState.lastX)*.006;
+    cameraState.pitch-=(y-cameraState.lastY)*.006;
+
+    cameraState.lastX=x;
+    cameraState.lastY=y;
+    applyCamera();
+  }else if(event.touches.length===2 && touchDistance){
+    const newDistance=Math.hypot(
+      event.touches[0].clientX-event.touches[1].clientX,
+      event.touches[0].clientY-event.touches[1].clientY
+    );
+
+    cameraState.distance-=(newDistance-touchDistance)*.01;
+    touchDistance=newDistance;
+    applyCamera();
+  }
+},{passive:true});
+
+canvasContainer.addEventListener('touchend',()=>{
+  cameraState.dragging=false;
+  touchDistance=null;
+});
+
+// ---------- starfield ----------
+function buildStarfield(){
+  const stars=document.getElementById('starfield');
+
+  for(let i=0;i<320;i++){
+    const theta=Math.random()*Math.PI*2;
+    const phi=Math.acos(Math.random()*2-1);
+    const r=45;
+
+    const x=r*Math.sin(phi)*Math.cos(theta);
+    const y=r*Math.sin(phi)*Math.sin(theta);
+    const z=r*Math.cos(phi);
+
+    const star=document.createElement('a-sphere');
+    star.setAttribute('position',`${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}`);
+    star.setAttribute('radius',(0.012+Math.random()*.025).toFixed(3));
+    star.setAttribute('color','#8891a0');
+
+    stars.appendChild(star);
+  }
+}
+
+buildStarfield();
+resetCamera();
+
+// ---------- keyboard ----------
+document.getElementById('prompt').addEventListener('keydown',event=>{
+  if(event.key==='Enter'){
+    event.preventDefault();
+    searchSatellite();
+  }
+});
+
+window.addEventListener('load',()=>{
+  setLink('connecting','connecting');
+  setTimeout(searchSatellite,700);
+});
+</script>
+
 </body>
 </html>

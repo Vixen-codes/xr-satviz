@@ -1,5 +1,6 @@
-flask==3.0.0
-gunicorn
-flask-cors==4.0.0
-requests==2.31.0
-skyfield==1.48
+Flask
+flask-cors
+requests
+skyfield
+sgp4
+numpy
